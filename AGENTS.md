@@ -41,12 +41,31 @@ and must clear the licence gate.
 (scaffold), M1 (`draft` behind `POST /draft`), M2 (`doc`, the AST document model), and M3's
 `seamgraph`, `avatar`, `place`, and `sim`'s solver core.
 
-**Do this next: `sim`'s collision, then bending.** §7's completion criterion is three things —
-total seam closure residue under 1 mm, no particle more than 2 mm inside the body mesh, and
-bit-identical positions across two runs — and **only the third is measurable today**. Collision
-is what turns the other two on, and it needs a spatial hash over the body's 37k triangles: a
-brute-force nearest-triangle search per particle per substep is 15 × N × 37k, which is not a
-thing. Read §7 in full and the note at the end of §11's M3 before starting.
+**Do these next, in this order.**
+
+1. **The particle mesh.** This is the missing link, and it comes first because nothing else can
+   run without it. `place` produces a `CylinderMap`; `sim` consumes particles and distance
+   constraints. **Nothing builds the one from the other, so `sim` currently has nothing to
+   simulate** — and therefore nothing to collide with, either. It needs the triangulation
+   `place` deliberately does not do: ear-clip or Delaunay each piece's flat outline, build a
+   grid whose density is §7.2's `Boundary subdivision` (15 mm), add structural and shear
+   distance constraints, and lift every particle through `place`'s `lift` so placement and the
+   particle grid cannot disagree about where a piece is.
+2. **Collision**, which is what makes §7's criterion measurable. It needs a spatial hash over
+   the body's 37k triangles: a brute-force nearest-triangle search per particle per substep is
+   15 × N × 37k, which is not a thing.
+3. **Bending**, the dihedral constraint §7.1 lists second and §7.2 calls the strongest control
+   over fold count.
+
+§7's completion criterion is three things — total seam closure residue under 1 mm, no particle
+more than 2 mm inside the body mesh, and bit-identical positions across two runs — and **only
+the third is measurable today**. Read §7 in full and the note at the end of §11's M3 before
+starting.
+
+Two pieces of M3 itself are also still missing, and both are small: **`seams/aaron.json`**, the
+hand-authored `SeamMap` that M3 is defined as being driven by — §11 asks for how long it took
+to author, because that number is M6's justification — and **a command-line harness** tying
+draft → seamgraph → avatar → place together, which is how M3 is meant to be exercised.
 
 `fit` (M4) and the editor (M5–M7) come after. Read `docs/editor-spec.md` §8.4 before touching
 the 2D surface, and §4.1.1 before touching anything under `src/doc/` — the comment-ownership

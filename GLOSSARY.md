@@ -43,6 +43,8 @@ The domain vocabulary. A glossary and nothing else — no implementation detail,
 | **Author** | Creating a design in the editor. | Drafting |
 | **Refusal** | A named, sourced reason the editor declines to model or emit. | Error |
 | **Lossless or refuse** | The governing invariant. | Best-effort |
+| **Free parameter** | The named input behind a draggable handle: an offset, an angle, or a distance. | Formula, measurement |
+| **Sketching parity** | The interaction standard: the editor's drawing gestures match Shapr3D's sketch mode. | Constraint solver |
 
 **Identification rule:** `piece.path` names an edge, and `node.id` names a construction step.
 An index never does — indices shift across edits and silently corrupt a seam map.

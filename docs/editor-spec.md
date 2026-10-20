@@ -42,11 +42,20 @@ the free inputs — measurements, options, and control-point offsets. Everything
 This is the same model Seamly2D and Valentina use, thirty years old and well proven. What is
 missing from the world is not the model. It is the interaction layer.
 
+**Which half of Shapr3D this takes.** The editor keeps Shapr3D's *model* — an ordered history
+that recomputes — and skips its *solver*, for the reason above. What it therefore has to match
+is the *interaction*: the sketching gestures that make Shapr3D feel like drawing rather than
+like filling in a form. **§8.4 is that standard, gesture by gesture**, and it is the reference
+for how the surface behaves. `dressform-product-brief.md` §4 states the same thing as a scope
+commitment.
+
 ### 2.1 What this costs
 
 - No underdetermined dragging. A point whose formula you have not edited stays where its
   formula puts it. This is correct behaviour for a pattern, and it will still feel
-  constrained the first time you try to nudge something.
+  constrained the first time you try to nudge something. §8.4 exists to make that difference
+  invisible rather than merely defensible: the drag, the live dimension, and the named free
+  parameter are one gesture, not three.
 - Every draggable handle needs a named free parameter behind it. "Drag this point" is really
   "edit this offset." The editor's job is to make that invisible — create the parameter on
   first drag, name it, and let you find it again later.
@@ -388,6 +397,50 @@ offset, angle, or distance with a stable name, visible in the properties panel a
 addressable from a formula. Creating three parameters by accident, one per drag, is the
 failure mode to design against — a drag either finds an existing parameter or creates one
 deliberately, and the properties panel always shows which.
+
+### 8.4 Sketching parity with Shapr3D
+
+**The standard.** The target is the feel of Shapr3D's sketch mode: you draw by dragging,
+the geometry goes where you meant because it snaps, the dimension you care about is already
+on screen and is tappable, and every edit recomputes immediately. §2 says *which half* of
+Shapr3D the editor takes — the model, not the solver. This section says what that half has
+to feel like, and it is the reference an implementer works against.
+
+The table is the core loop. A gesture in it that has to be looked up has not been built.
+
+| Gesture | In Shapr3D | In the editor |
+|---|---|---|
+| Draw a segment | Drag from A to B; the segment appears and snaps to the geometry it nearly touches | Drag on the surface; the path op is committed at pointer-up, snapped per §8.2's candidate order |
+| Draw a point | Place it directly, or place it on something that already exists | Drag to place it, or type its formula without drawing at all (§14.4) |
+| Read a dimension | Every sketch element carries a dimension label showing its live value | Every node carries its live dimensions: a path's length, a shift's angle and distance, a translate's dx and dy, a distance-between's result |
+| Set an exact value | Tap the dimension label and type a number — or a simple expression, `50/2` — or open a numpad | Tap the dimension label and type a **formula**: `measurements.chest / 4`, `shoulderToShoulder * 0.5`. Strictly a superset of Shapr3D's arithmetic, and the reason this editor exists rather than a sketcher |
+| Drag an entity | Drag it and the sketch re-solves under the constraints it carries | Drag a handle and the construction recomputes. What the drag changes is the *free parameter* behind the handle, not a solved position (§2.1) |
+| Snapping | Automatic and inferred, with on-canvas badges naming each constraint it just added | Automatic, but for **one gesture only** (§8.2): a snap positions this input and leaves nothing behind |
+| Selection | Tap to select; the properties for that selection appear | Tap to select; the properties panel shows the node's formula, its evaluated value, and the free parameter that owns it |
+| Definition state | The sketch recolours when it is fully defined versus still under-defined | Not shown, because there is nothing to show: every node is either derived from a formula or *is* a free parameter, so the question "is this defined?" never has a second answer |
+| Pencil | Draw with the Apple Pencil, type with the keypad | The same split. §8.1 covers coalesced events, palm rejection, and `touch-action` |
+
+**The one difference, and how to hide it.** In Shapr3D a drag moves a point and a solver
+decides what that implies. Here a drag edits a named input, because there is no solver to
+consult (§2). Every other gesture is identical, so the work is to make that difference
+invisible:
+
+- One drag creates or finds **exactly one** free parameter.
+- The parameter is named and shown in the properties panel the moment it exists.
+- The dimension displayed live during the drag **is** that parameter, so reading it and
+  editing it are the same object.
+- A handle never exists without a parameter behind it, and no handle ever collects two.
+
+**What is deliberately not copied: constraints that persist.** In Shapr3D an auto-added
+horizontal constraint stays in the sketch and resists the next edit. That is the right trade
+for a mechanical part, whose geometry is the point. It is the wrong one for a pattern, where
+the point of a node is that a formula explains it and a measurement can move it. So a snap
+here is an aid to one gesture, and the value it produced is written into the formula, where
+it stays visible and editable. The editor never leaves an inference in the document that the
+user did not type.
+
+**Deliberately not tested.** Whether this feels right is a judgement call, made by the
+person who uses it. §13 says so, and a test that tries to assert it will be noise.
 
 ---
 

@@ -87,7 +87,8 @@ question asked at two different sizes.
 ### In, v1 — Author
 
 - A 2D drafting surface: draw points and paths, drag them, edit the formula behind any
-  point, bind measurements.
+  point, bind measurements. Held to the sketching standard in `dressform-editor-spec.md`
+  §8.4 — the gestures match Shapr3D's sketch mode; the model stays a construction history.
 - Seam definition by clicking two edges. Direction, fraction, and mirroring as properties.
   Live length validation.
 - Emit FreeSewing source from the editor.
@@ -133,7 +134,8 @@ Detail and rationale live in the companion documents.
   ordered feature history. FreeSewing source is an imperative construction sequence, and a
   solved constraint system has no unique construction order — recovering one is a research
   problem, not a feature. So the editor keeps the history and skips the solver. Drag an
-  input; everything downstream recomputes.
+  input; everything downstream recomputes. Most of the sketching gestures survive the split,
+  and `dressform-editor-spec.md` §8.4 is the list of which, and what each one does.
 - **FreeSewing source is parsed, not generated-and-reparsed.** The syntax tree is the
   canonical document. Emit is a printer; import is a parser. Neither direction loses
   anything, because the tree is never thrown away. This is the decision that makes
@@ -198,6 +200,11 @@ Given/When/Then. UAT judges against these.
 - **Given** a node rename in the editor, **when** the seam map references that node,
   **then** either the references are re-keyed or the rename is refused, and never silently
   orphaned.
+- **Given** someone who sketches in Shapr3D, **when** they draw a pattern here for the first
+  time, **then** they can draw a segment, drag a handle, read the live dimension on it, and
+  type an exact value into that dimension without asking how. Judged by that person against
+  `dressform-editor-spec.md` §8.4. Not machine-testable, and deliberately so — see that
+  document §13.
 
 ### v1 — the seam map
 

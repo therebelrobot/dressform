@@ -725,7 +725,8 @@ two runs and a drape driven end to end from a `.dressform` document.
 Record how long the hand-authored seam map took. That number is the input to M6's
 justification.
 
-**Built: `seamgraph`, `avatar`, `place`. Outstanding: `sim`.** `src/seamgraph/` resolves
+**Built: `seamgraph`, `avatar`, `place`. `sim` is in progress — its solver core is, its criterion
+is not.** `src/seamgraph/` resolves
 a `SeamMap` against a `DraftResult` — fraction sub-selection, direction reversal, mirror
 expansion, and the length-tolerance check — with 11 tests against synthetic maps and
 hand-computed arc lengths. A seam that cannot resolve is reported with the offending
@@ -768,6 +769,21 @@ through the same mapping. Seam-aware orientation is a **±45° refinement** of t
 piece's category implies, not a search of the circle: a panel that wraps most of a torso has a
 seam edge almost everywhere, so minimising seam distance over 360° drags the back panel round
 to lie beside the front one — a better seam and a worse garment.
+
+**`sim`'s solver core is in, and it is not the milestone.** What exists is particles, XPBD
+distance projection, seam projection that shrinks to closure across the first frames, and §7.3
+determinism — 9 tests, all analytic, including a bit-identical comparison of two runs that is
+the §7.3 criterion itself. Determinism was worth doing first because it is a property of
+*iteration order*, and iteration order is easy to keep fixed while the code is small and hard
+to recover once it is not: nothing is keyed by object identity and nothing is iterated out of a
+`Map` or `Set` in a hot loop.
+
+What does **not** exist: collision against the body, self-collision, bending, and the worker
+protocol. So §7's criterion — total seam closure residue under 1 mm, no particle more than 2 mm
+inside the body mesh, bit-identical across two runs — is one third measurable. The module must
+not be described as passing it. Collision is the next slice and it needs a spatial hash over
+the body's 37k triangles: a brute-force nearest-triangle search per particle per substep is
+15 × N × 37k, which is not a thing.
 
 #### M4 — Fit report
 

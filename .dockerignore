@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.github
+docs
+seams
+assets
+test
+*.md
+!README.md

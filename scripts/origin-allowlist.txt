@@ -1,0 +1,11 @@
+# Origins permitted to appear in a built bundle.
+#
+# A hit here is a string in the code, not necessarily a network call — an error
+# message linking to documentation is the usual case. The point is that every
+# origin is a decision somebody made, so anything new fails the build and has to
+# be added deliberately.
+#
+# Add an entry only after confirming the origin is inert. Anything that could be
+# fetched is a different question, and it belongs in the egress review instead.
+#
+# One host per line, lowercase, no scheme, no path. Lines starting with # are ignored.

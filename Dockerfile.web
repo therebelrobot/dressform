@@ -1,0 +1,19 @@
+# dressform-web — the editor shell.
+# nginx serves the static bundle and proxies API paths to the drafting service,
+# so the editor and the API are one origin and need no CORS.
+
+FROM node:24-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY web ./web
+RUN npx esbuild web/index.ts \
+      --bundle --format=esm --target=es2022 \
+      --outfile=dist/web/app.js
+
+FROM nginx:alpine AS runtime
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist/web/app.js /usr/share/nginx/html/app.js
+COPY web/index.html /usr/share/nginx/html/index.html
+EXPOSE 80

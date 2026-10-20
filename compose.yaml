@@ -1,0 +1,49 @@
+services:
+  dressform:
+    image: ghcr.io/therebelrobot/dressform:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dressform
+    restart: unless-stopped
+    environment:
+      PORT: "8091"
+    volumes:
+      # Read-only. The drafting service is stateless; this is the one directory it
+      # has a use for, and mounting it read-only keeps the stateless claim true.
+      - ./seams:/app/seams:ro
+    networks:
+      - internal
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8091/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  dressform-web:
+    image: ghcr.io/therebelrobot/dressform-web:local
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: dressform-web
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    depends_on:
+      - dressform
+    networks:
+      - internal
+      - edge
+
+networks:
+  # internal: true is what makes the "no egress" claim mechanically true rather than
+  # asserted. The drafting service has no route off this network.
+  internal:
+    internal: true
+  edge:
+    driver: bridge

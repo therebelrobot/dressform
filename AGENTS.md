@@ -37,12 +37,14 @@ and must clear the licence gate.
 
 ## Where the work is
 
-`docs/technical-design.md` §11. M0 (scaffold), M1 (`draft` behind `POST /draft`) and M2
-(`doc`, the AST document model) are in place and green locally. **M3 — seam resolution,
-placement, and drape — is next**: `seamgraph`, `avatar`, `place`, and the TypeScript `sim`
-adapter, driven from the command line with a hand-authored `SeamMap`. Read
-`docs/technical-design.md` §6.3 and §7 before starting it, and `docs/editor-spec.md` §8.4
-before touching the 2D surface at M5.
+`docs/technical-design.md` §11. M0 (scaffold), M1 (`draft` behind `POST /draft`), M2 (`doc`,
+the AST document model) and M3's `seamgraph` are in place and green locally. **Remaining in
+M3: `avatar`, `place`, and the TypeScript `sim` adapter**, driven from the command line with a
+hand-authored `SeamMap`. Read `docs/technical-design.md` §6.3, §7, and the note at the end of
+§11's M3 before starting. Read `docs/editor-spec.md` §8.4 before touching the 2D surface at M5.
+
+M3 is being built in verifiable slices, one commit per subsystem, rather than in one pass —
+its completion criterion is a measured drape, and nothing lands that cannot be checked.
 
 Before editing anything under `src/doc/`, read `docs/editor-spec.md` §4.1.1. The comment
 ownership rule there was measured, and getting it wrong corrupts a file in a way that still

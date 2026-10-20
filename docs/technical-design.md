@@ -660,6 +660,24 @@ two runs and a drape driven end to end from a `.dressform` document.
 Record how long the hand-authored seam map took. That number is the input to M6's
 justification.
 
+**`seamgraph` built; `avatar`, `place`, and `sim` still outstanding.** `src/seamgraph/` resolves
+a `SeamMap` against a `DraftResult` — fraction sub-selection, direction reversal, mirror
+expansion, and the length-tolerance check — with 11 tests against synthetic maps and
+hand-computed arc lengths. A seam that cannot resolve is reported with the offending
+`piece.path` and skipped, so one pass shows every broken seam rather than the first.
+
+Fractions are measured against `pathLengths`, which is curve-accurate, and the tessellation is
+used only to work out *where* a cut lands: a cut at arc length `s` sits at `s · polylineLength
+/ curveLength` along the polyline. The two differ by hundredths of a millimetre, which is
+inside most tolerances and outside this project's.
+
+One thing mirror expansion deliberately does **not** do: reflect geometry. Arc length,
+fraction, and direction are all invariant under reflection, and `§6.3`'s `sides` carries no
+mirror axis, so the resolver emits a second seam with the id's side flipped (`shoulder.left` →
+`shoulder.right`) and reports which pieces it expanded. Choosing where a mirrored copy sits on
+the body is `place`'s job. If a design ever needs a mirror axis in the map, that is an addition
+to §6.3 rather than a hidden assumption here.
+
 #### M4 — Fit report
 
 `fit` module, heat map, worst-seam callout, click-through to the 2D edge.

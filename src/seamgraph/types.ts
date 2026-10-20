@@ -40,6 +40,62 @@ export interface SeamMap {
   seams: SeamSpec[]
 }
 
+// ---------------------------------------------------------------------------
+// What resolution produces. Technical design §4.1 names the interface
+// `resolve(map, draft) → ResolvedSeams` and §6.3 fixes the input; the output
+// shape is this module's, and it is what `place` and `sim` consume.
+// ---------------------------------------------------------------------------
+
+export interface ResolvedEdge {
+  piece: string
+  path: string
+  /** The sub-arc, already in the seam's direction, as a polyline. */
+  points: Array<[number, number]>
+  /**
+   * Curve-accurate arc length of the sub-arc, in millimetres — measured against
+   * `DraftPiece.pathLengths`, never against the polyline.
+   */
+  length: number
+  fraction: [number, number]
+  direction: 'forward' | 'reverse'
+}
+
+/** Which copy of a mirrored piece this seam belongs to. Null when it is not mirrored. */
+export type SeamSide = 'left' | 'right'
+
+export interface ResolvedSeam {
+  /** `shoulder.left`. A mirrored piece yields a second seam, `shoulder.right`. */
+  id: string
+  side: SeamSide | null
+  a: ResolvedEdge
+  b: ResolvedEdge
+  /** `a.length − b.length`. The number the editor shows before anything is simulated. */
+  lengthDelta: number
+  verdict: 'ok' | 'mismatch'
+}
+
+/**
+ * A seam that did not resolve. It always names the offending `piece.path`,
+ * because "resolution failed" without a location is not actionable.
+ */
+export interface ResolutionFailure {
+  seam: string
+  piece: string
+  path: string
+  message: string
+}
+
+export interface ResolvedSeams {
+  schemaVersion: 1
+  design: string
+  units: 'mm'
+  lengthTolerance: number
+  seams: ResolvedSeam[]
+  failures: ResolutionFailure[]
+  /** Names the mirrored pieces that were expanded, so the count is reviewable. */
+  mirrored: string[]
+}
+
 /** The default tolerance, from technical design §6.3. */
 export const DEFAULT_LENGTH_TOLERANCE = 2.0
 

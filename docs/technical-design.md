@@ -429,8 +429,36 @@ when simulation reproduces.
 
 ### 7.4 Reference bodies
 
-Two CC0 meshes generated with MPFB2 from the MakeHuman base mesh — the same lineage Vina
-and opensew-2 use — shipped as three scaled variants each.
+Two CC0 meshes from the MakeHuman base mesh — the same lineage Vina and opensew-2 use —
+shipped with three scaled variants each. **Built**; provenance and regeneration live in
+`assets/bodies/README.md`.
+
+`male-young.json` (1.786 m) and `female-young.json` (1.637 m): the base mesh with one
+`macrodetails` target applied, in metres, Y-up, three.js's convention. 19,158 vertices and
+36,972 triangles each, undecimated, because decimation would change the surface the cloth
+collides with. The manifest carries the upstream commit, the sha256 of both inputs, the CC0
+statement, and the coordinate convention, so the meshes are checkable rather than trusted.
+
+Two corrections against this section as first written:
+
+- **MPFB2 is not in the path.** Asking for meshes "generated with MPFB2" overlooks that MPFB2
+  is two things under two licences — GPLv3 source and CC0 assets. Vendoring the former into an
+  Unlicense project is not available, and requiring Blender to regenerate a mesh is a poor
+  trade for a repository with no other GUI dependency. `scripts/build-bodies.py` applies the
+  same CC0 targets to the same CC0 base mesh in plain Python, which is the whole of the
+  operation: a target is a list of per-vertex offsets. The lineage is unchanged.
+- **The three variants are a scalar, not three meshes.** They are a uniform scale of one mesh,
+  so three copies would encode one number three times at three times the size. The factors
+  (`[0.95, 1.0, 1.05]`) live in the manifest and in each body. If those variants were ever
+  meant as different *morphs* rather than scales, this is the wrong shape, and the manifest is
+  where to change it.
+
+One decoy is worth carrying forward. `macrodetails/universal-<gender>-<age>-<muscle>-<weight>
+.target` looks like the right input and is not: upstream those files are 604-byte stubs holding
+nothing but a licence header, because MakeHuman composes real macrodetails at build time. The
+first attempt applied a stub and produced the unmodified base mesh twice under two names, which
+no vertex count or file size would have revealed. The generator now refuses a target with no
+offsets, and a test asserts the two bodies differ.
 
 **Limitation, printed on the readout itself:** the body scales from the same measurement
 set the pattern was drafted from, per body region. It is not anatomically morphed.
@@ -541,7 +569,7 @@ registry this session.
 | Müller XPBD structure | — | MIT | Solver | **Adapt with attribution** in `THIRD-PARTY-NOTICES.md` |
 | PositionBasedDynamics dihedral | — | MIT | Bending constraint | **Adapt with attribution** |
 | Tissu bending angle | — | Apache-2.0 | Bending formulation | **Adapt with attribution** |
-| MakeHuman base mesh via MPFB2 | — | CC0 | Reference bodies | **Ship.** No attribution required; give it anyway |
+| MakeHuman base mesh + `macrodetails` targets | `a8bc2d54` | CC0-1.0 | Reference bodies | **Ship.** Committed as derived meshes, with input digests and the upstream commit in `assets/bodies/manifest.json`. No attribution required; given anyway. Applied directly rather than through MPFB2 — see §7.4 |
 | Vina | — | MIT | Reference implementation | **Study only.** Not a dependency. |
 | `ts-morph` | 28.0.0 | MIT | TypeScript codemod toolkit | **Reject.** Wraps the TS compiler, whose printer drops comments unless hand-attached. Recast solves the actual problem. |
 | `astring`, `@babel/generator` | 1.9.0, 8.0.6 | MIT | AST → code printers | **Reject.** Both reprint the whole tree; neither preserves the original formatting of untouched nodes. |

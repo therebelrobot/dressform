@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "licence": "CC0-1.0",
+  "licenceFiles": [
+    "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/LICENSE.ASSETS.md"
+  ],
+  "upstream": {
+    "repository": "https://github.com/makehumancommunity/makehuman",
+    "commit": "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
+    "baseMesh": "makehuman/data/3dobjs/base.obj",
+    "baseMeshSha256": "8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c"
+  },
+  "generator": {
+    "script": "scripts/build-bodies.py",
+    "note": "MPFB2's source is GPLv3 and is not used here; this script applies the same CC0 targets to the same CC0 base mesh directly, so no GPL code is involved in the output."
+  },
+  "units": {
+    "stored": "metres",
+    "upstream": "decimetres",
+    "conversion": 0.1
+  },
+  "coordinateSystem": {
+    "x": "right",
+    "y": "up",
+    "z": "front",
+    "handedness": "right"
+  },
+  "scales": [
+    0.95,
+    1.0,
+    1.05
+  ],
+  "bodies": [
+    {
+      "id": "male-young",
+      "file": "male-young.json",
+      "gender": "male",
+      "ethnicity": "caucasian",
+      "age": "young",
+      "height": 1.7858,
+      "target": "makehuman/data/targets/macrodetails/caucasian-male-young.target",
+      "targetSha256": "70e228ba7164737dae664454394536fc5935fa48d333c1a97d77e2dc6eacc5f5",
+      "targetOffsets": 19150
+    },
+    {
+      "id": "female-young",
+      "file": "female-young.json",
+      "gender": "female",
+      "ethnicity": "caucasian",
+      "age": "young",
+      "height": 1.6367,
+      "target": "makehuman/data/targets/macrodetails/caucasian-female-young.target",
+      "targetSha256": "118379f6e8ba9266247fdb8788a20e1df40a239f97ced0b9905bcbcc74f6e820",
+      "targetOffsets": 19150
+    }
+  ]
+}

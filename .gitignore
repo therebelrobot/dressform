@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# Upstream inputs for scripts/build-bodies.py; the derived meshes are committed.
+.cache/
 *.local
 .env
 .env.*

@@ -37,15 +37,26 @@ and must clear the licence gate.
 
 ## Where the work is
 
-`docs/technical-design.md` §11. M0 (scaffold), M1 (`draft` behind `POST /draft`), M2 (`doc`,
-the AST document model) and M3's `seamgraph` are in place and green locally. **Remaining in
-M3: `avatar`, `place`, and the TypeScript `sim` adapter**, driven from the command line with a
-hand-authored `SeamMap`. Read `docs/technical-design.md` §6.3, §7, and the note at the end of
-§11's M3 before starting. Read `docs/editor-spec.md` §8.4 before touching the 2D surface at M5.
+`docs/technical-design.md` §11 is the plan and the status. In place and green locally: M0
+(scaffold), M1 (`draft` behind `POST /draft`), M2 (`doc`, the AST document model), and M3's
+`seamgraph`, `avatar`, `place`, and `sim`'s solver core.
 
-M3 is being built in verifiable slices, one commit per subsystem, rather than in one pass —
-its completion criterion is a measured drape, and nothing lands that cannot be checked.
+**Do this next: `sim`'s collision, then bending.** §7's completion criterion is three things —
+total seam closure residue under 1 mm, no particle more than 2 mm inside the body mesh, and
+bit-identical positions across two runs — and **only the third is measurable today**. Collision
+is what turns the other two on, and it needs a spatial hash over the body's 37k triangles: a
+brute-force nearest-triangle search per particle per substep is 15 × N × 37k, which is not a
+thing. Read §7 in full and the note at the end of §11's M3 before starting.
 
-Before editing anything under `src/doc/`, read `docs/editor-spec.md` §4.1.1. The comment
-ownership rule there was measured, and getting it wrong corrupts a file in a way that still
-parses.
+`fit` (M4) and the editor (M5–M7) come after. Read `docs/editor-spec.md` §8.4 before touching
+the 2D surface, and §4.1.1 before touching anything under `src/doc/` — the comment-ownership
+rule there was measured, and getting it wrong corrupts a file in a way that still parses.
+
+Milestones are built in verifiable slices, one commit per subsystem, rather than in one pass.
+Nothing lands that cannot be checked, and a commit message says plainly what it does *not* do —
+see `5ee0f2b` for the shape.
+
+Two things a fresh agent should not have to rediscover, both recorded in full where they
+belong: **the widest cross-section at chest height is not the chest** (§11 M3 — the arms merge
+into the torso and inflate the girth by a third), and **the draft is in millimetres while the
+scene is in metres** (`place` — `lift` is the single place they meet).

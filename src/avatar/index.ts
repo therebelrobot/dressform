@@ -220,7 +220,9 @@ const bounds = (positions: Float64Array): Boundaries => {
   return { min, max }
 }
 
-export const boundsOf = bounds
+// `bounds` stays module-private. `fit` and `place` each want a bounding box, but
+// neither has asked for one yet, and §4.2's rule is the one that applies: an
+// export with no caller is a hypothetical seam wearing a function's clothes.
 
 /**
  * The vertical scale the request implies, from `waistToHips` and the rig.
@@ -383,13 +385,6 @@ export const build = (reference: ReferenceBody, measurements: MeasurementSet): T
     landmarks,
     scaling: { body: reference.id, verticalScale, stature, bands, warnings },
   }
-}
-
-/** Anchor heights in the finished frame, for `place` and for the readout. */
-export const anchorHeights = (mesh: TriangleMesh): Record<string, number> => {
-  const out: Record<string, number> = {}
-  for (const band of mesh.scaling.bands) out[band.region] = band.y
-  return out
 }
 
 /**

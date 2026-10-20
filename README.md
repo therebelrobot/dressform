@@ -7,15 +7,21 @@ garment on a body in 3D. Self-hosted, Apple Pencil, no account.
 
 ## Status
 
-**Document model (M2).** `POST /draft` answers with a rendered SVG and a `DraftResult` — per
-piece, its named paths, their curve-accurate lengths, notches, grainline, and centroid — and
-`src/doc/` holds the AST document model underneath it: parse, edit, emit, fence, and preserve
-opaque regions byte-for-byte, with **lossless or refuse** enforced by a property test rather
-than by care.
+**M2 complete; M3 in progress.** The drafter and the document model are done, and the drape
+pipeline is most of the way built: `seamgraph` resolves a seam map against a draft, `avatar`
+scales a CC0 reference body to a measurement set, `place` seats the pieces on that body, and
+`sim` has its solver core with §7.3 determinism. **Collision is next** — it is what makes the
+fit criterion measurable, and until it lands `sim` is not described as passing anything.
+`docs/technical-design.md` §11 is the plan and the status; `AGENTS.md` says where to start.
 
-The deployed app serves `/healthz`, `GET /designs`, `GET /designs/:design`, `POST /draft`, plus
-a smoke-test page that proves the static asset → reverse proxy → API path end to end. See
-`docs/technical-design.md` §11 for the milestone plan.
+`POST /draft` answers with a rendered SVG and a `DraftResult` — per piece, its named paths,
+their curve-accurate lengths, notches, grainline, and centroid. `src/doc/` holds the AST
+document model underneath: parse, edit, emit, fence, and preserve opaque regions byte-for-byte,
+with **lossless or refuse** enforced by a property test rather than by care.
+
+The deployed app serves `/healthz`, `GET /designs`, `GET /designs/:design`, and `POST /draft`,
+plus a smoke-test page that proves the static asset → reverse proxy → API path end to end. The
+drape pipeline is not wired to the server yet; M3 runs headlessly.
 
 ```bash
 curl -sX POST http://localhost:8091/draft \

@@ -44,12 +44,20 @@ export interface SimOptions {
   gravity?: number
   /** §7.2: zero means stiff. Applies to every distance constraint without its own. */
   stretchCompliance?: number
-  /** §7.2: 0.001. */
-  shearCompliance?: number
   /** §7.1: a seam's rest length reaches zero across this many frames. */
   seamShrinkFrames?: number
 }
 
+/**
+ * §7.2's table, in one place.
+ *
+ * `shearCompliance` is recorded here and **not accepted by `SimOptions`**, on
+ * purpose. Shear constraints arrive with the particle grid, which needs the
+ * piece triangulation `place` deliberately does not do, and an option the solver
+ * silently ignores is worse than an option that does not exist yet: it reads as
+ * working. A test pins this constant so §7.2's number does not drift while the
+ * constraint is missing.
+ */
 export const DEFAULTS = {
   substeps: 15,
   damping: 0.99,
@@ -105,7 +113,6 @@ export const createSim = (options: SimOptions = {}): Sim => {
   const damping = options.damping ?? DEFAULTS.damping
   const gravity = options.gravity ?? DEFAULTS.gravity
   const stretch = options.stretchCompliance ?? DEFAULTS.stretchCompliance
-  const shear = options.shearCompliance ?? DEFAULTS.shearCompliance
   const shrinkFrames = options.seamShrinkFrames ?? DEFAULTS.seamShrinkFrames
 
   // Flat arrays, walked in index order. Nothing is keyed by object identity and
@@ -263,12 +270,6 @@ export const createSim = (options: SimOptions = {}): Sim => {
       return frame
     },
   }
-
-  // `shear` is accepted and recorded so the §7.2 defaults are one place, but
-  // nothing uses it yet: shear constraints arrive with the particle grid, which
-  // needs the piece triangulation `place` deliberately does not do.
-  void shear
-  void stretch
 
   return sim
 }

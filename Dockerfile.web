@@ -2,7 +2,7 @@
 # nginx serves the static bundle and proxies API paths to the drafting service,
 # so the editor and the API are one origin and need no CORS.
 
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci

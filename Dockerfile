@@ -1,7 +1,7 @@
 # dressform — the drafting service.
 # Bundled to a single file so the runtime image has no import resolution to do.
 
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -11,7 +11,7 @@ RUN npx esbuild src/server/index.ts \
       --bundle --platform=node --format=esm --target=node22 \
       --outfile=dist/server.js
 
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8091

@@ -26,12 +26,38 @@ import pathlib
 import sys
 import urllib.request
 
-# Pinned so a re-run produces the same bytes. Both paths live in the same
-# repository, so one pin covers the mesh and both targets.
+# Pinned so a re-run produces the same bytes.
 COMMIT = "a8bc2d54ff0ac92e78ff71431b1023eda42bf482"
 RAW = f"https://raw.githubusercontent.com/makehumancommunity/makehuman/{COMMIT}/"
 BASE_MESH = "makehuman/data/3dobjs/base.obj"
 TARGETS = "makehuman/data/targets/macrodetails"
+
+# The joint table comes from MPFB2 rather than MakeHuman: the mesh's named vertex
+# groups, including `joint-pelvis`, `joint-spine-1`…`joint-neck`, and a `body`
+# range that excludes the helper geometry (eyes, hair, teeth) the base mesh also
+# carries. Those are the anchors `avatar` needs, and deriving them from a table
+# beats guessing them from a silhouette. MPFB2's data is CC0 under its own
+# `LICENSE.ASSETS.md`; its GPLv3 source is not used.
+MPFB_COMMIT = "b1a2dc98776da9d1eea751b159d42cf61778fe2e"
+MPFB_RAW = f"https://raw.githubusercontent.com/makehumancommunity/mpfb2/{MPFB_COMMIT}/"
+VERTEX_GROUPS = "src/mpfb/data/mesh_metadata/basemesh_vertex_groups.json"
+
+# The joints `avatar` anchors on, in the order they appear down the body.
+JOINTS = [
+    "joint-neck",
+    "joint-l-shoulder",
+    "joint-r-shoulder",
+    "joint-spine-1",
+    "joint-spine-2",
+    "joint-spine-3",
+    "joint-spine-4",
+    "joint-pelvis",
+    "joint-l-upper-leg",
+    "joint-r-upper-leg",
+]
+
+# The mesh's own trunk, so a cross-section is not polluted by eyes or teeth.
+BODY_GROUP = "body"
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 CACHE = REPO_ROOT / ".cache" / "bodies"
@@ -86,13 +112,13 @@ SCALES = [0.95, 1.0, 1.05]
 PRECISION = 4
 
 
-def fetch(relative: str, force: bool) -> tuple[bytes, str]:
+def fetch(relative: str, force: bool, base: str = RAW) -> tuple[bytes, str]:
     CACHE.mkdir(parents=True, exist_ok=True)
     cached = CACHE / pathlib.Path(relative).name
     if cached.exists() and not force:
         data = cached.read_bytes()
     else:
-        url = RAW + relative
+        url = base + relative
         sys.stderr.write(f"  fetching {url}\n")
         with urllib.request.urlopen(url, timeout=120) as response:
             data = response.read()
@@ -164,6 +190,45 @@ def bounds(positions: list[list[float]]) -> dict[str, list[float]]:
     }
 
 
+def groups_to_ranges(groups: object) -> dict[str, list[tuple[int, int]]]:
+    """Flatten the vertex-group table. A leaf is a list of `[start, end]` pairs."""
+    out: dict[str, list[tuple[int, int]]] = {}
+    if not isinstance(groups, dict):
+        return out
+    for name, value in groups.items():
+        if not isinstance(value, list):
+            continue
+        pairs = []
+        for entry in value:
+            if (
+                isinstance(entry, list)
+                and len(entry) == 2
+                and all(isinstance(item, int) for item in entry)
+            ):
+                pairs.append((int(entry[0]), int(entry[1])))
+        if pairs:
+            out[name] = pairs
+    return out
+
+
+def centroid(positions: list[list[float]], pairs: list[tuple[int, int]]) -> list[float] | None:
+    """The mean of a vertex group, in the morphed frame — so it moves with the body."""
+    xs = ys = zs = 0.0
+    count = 0
+    for start, end in pairs:
+        for index in range(start, end + 1):
+            if index >= len(positions):
+                continue
+            x, y, z = positions[index]
+            xs += x
+            ys += y
+            zs += z
+            count += 1
+    if count == 0:
+        return None
+    return [round(xs / count, PRECISION), round(ys / count, PRECISION), round(zs / count, PRECISION)]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="re-download even if cached")
@@ -175,6 +240,15 @@ def main() -> None:
     sys.stderr.write(
         f"  {len(base_positions)} vertices, {len(triangles)} triangles, sha256 {base_digest[:16]}\n"
     )
+
+    sys.stderr.write(f"vertex groups: {VERTEX_GROUPS}\n")
+    groups_bytes, groups_digest = fetch(VERTEX_GROUPS, args.force, base=MPFB_RAW)
+    ranges = groups_to_ranges(json.loads(groups_bytes.decode("utf-8")))
+    sys.stderr.write(f"  {len(ranges)} named groups, sha256 {groups_digest[:16]}\n")
+    if BODY_GROUP not in ranges:
+        raise SystemExit(f"the vertex-group table has no `{BODY_GROUP}` group")
+    if len(ranges) < 100:
+        raise SystemExit("the vertex-group table parsed to almost nothing — check the format")
 
     OUT.mkdir(parents=True, exist_ok=True)
     entries = []
@@ -207,6 +281,23 @@ def main() -> None:
                 f"the unit conversion is probably wrong"
             )
 
+        # Joints move with the morph, so they are read off the morphed mesh.
+        joints: dict[str, list[float]] = {}
+        for name in JOINTS:
+            pairs = ranges.get(name)
+            if pairs is None:
+                continue
+            point = centroid(morphed, pairs)
+            if point is not None:
+                joints[name] = point
+        if len(joints) != len(JOINTS):
+            sys.stderr.write(f"  WARNING: only {len(joints)}/{len(JOINTS)} joints resolved\n")
+
+        body_pairs = ranges[BODY_GROUP]
+        body_range = [min(pair[0] for pair in body_pairs), max(pair[1] for pair in body_pairs)]
+        if body_range[1] >= len(morphed):
+            raise SystemExit("the body vertex range runs past the end of the mesh")
+
         document = {
             "schemaVersion": 1,
             "id": body["id"],
@@ -219,6 +310,8 @@ def main() -> None:
             "scales": SCALES,
             "vertexCount": len(morphed),
             "triangleCount": len(triangles),
+            "bodyRange": body_range,
+            "joints": joints,
             "positions": [value for point in morphed for value in point],
             "indices": [index for triangle in triangles for index in triangle],
         }
@@ -246,12 +339,24 @@ def main() -> None:
         "licence": "CC0-1.0",
         "licenceFiles": [
             f"{RAW}LICENSE.ASSETS.md",
+            f"{MPFB_RAW}LICENSE.ASSETS.md",
         ],
         "upstream": {
             "repository": "https://github.com/makehumancommunity/makehuman",
             "commit": COMMIT,
             "baseMesh": BASE_MESH,
             "baseMeshSha256": base_digest,
+        },
+        "jointsSource": {
+            "repository": "https://github.com/makehumancommunity/mpfb2",
+            "commit": MPFB_COMMIT,
+            "file": VERTEX_GROUPS,
+            "sha256": groups_digest,
+            "note": (
+                "The rig joints and the body vertex range, from the mesh's named vertex groups. "
+                "MPFB2's data is CC0 under its own LICENSE.ASSETS.md; its GPLv3 source is not used. "
+                "Recovered as `avatar` needs anchors that are facts rather than inferences."
+            ),
         },
         "generator": {
             "script": "scripts/build-bodies.py",

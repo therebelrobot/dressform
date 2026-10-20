@@ -465,6 +465,33 @@ set the pattern was drafted from, per body region. It is not anatomically morphe
 Consistency between draft and body is what makes the strain number mean anything;
 anatomical fidelity is a later concern.
 
+#### Scanned bodies — noted, not scheduled
+
+The real answer to that limitation is to stop approximating a body and use the actual one:
+scan the person the garment is for, import the mesh, and drape against that. The intended
+route is a structured-light or laser scan of the kind a print-quality 3D scanner produces —
+the same class of device that would be used to reproduce a figure in the first place.
+
+**Not now**, and not because it is small. It changes what a reference body *is*, in three
+places this section currently depends on:
+
+- **A scan has no rig.** `avatar`'s anchors are rig joints — `joint-spine-1`, `joint-pelvis`,
+  the shoulder joints — read from a CC0 joint table. A scan is a surface with no such table,
+  so the anchors become an inference from the silhouette again, and the section above is a
+  record of how badly that goes: the widest loop at chest height is not the chest.
+- **A scan has no agreed frame.** It arrives in whatever scale, orientation, and origin the
+  scanner chose, and someone has to say which way is up and where the floor is before a
+  measurement means anything.
+- **A scan is not necessarily a collision surface.** A print-quality scan is dense, noisy, and
+  usually open at the extremities. `sim` wants something closed, reasonably uniform, and
+  cheap to query through a spatial hash.
+
+So this is an addition to the `ReferenceBody` contract rather than a third JSON file: a body
+either carries a rig or it does not, and the two need different `avatar` paths. Worth doing
+when a scanner is in hand and body fidelity — rather than draft/body consistency — is the
+binding error in the readout. Recorded in §11's deferred table; the trigger is a scanner, not
+a milestone.
+
 ---
 
 ## 8. Fit report
@@ -767,6 +794,7 @@ through M2's property test.
 | Rust/WASM solver tier | M7 complete, and the TS solver is the measured bottleneck |
 | Inferred seam matching | M6's maps are judged too slow to author by hand per design |
 | Anatomically morphed bodies | The readout is trusted enough that body accuracy is the limiting error |
+| Scanned reference bodies | A scanner is in hand — see §7.4. Not a milestone trigger, a hardware one |
 | DXF-AAMA export | Something outside the LAN needs to consume a pattern |
 | Additional FreeSewing designs | M7 passes end to end |
 

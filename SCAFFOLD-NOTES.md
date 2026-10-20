@@ -1,23 +1,9 @@
 # Scaffold notes
 
-This archive is the M0 scaffold. Two things are deliberately absent.
-
-## package-lock.json
-
-Run `npm install` once in the repo root to generate it, then commit it. Both Dockerfiles
-use `npm ci`, which requires a lockfile, so the first `docker build` fails without it.
-
-Regenerate it on your own machine if you prefer; the lockfile is platform-independent but
-was generated on Node 24.
-
-## The three design documents
-
-`docs/product-brief.md`, `docs/technical-design.md`, and `docs/editor-spec.md` are not in
-this archive — roughly 78 KB, kept out so the delivery page stays small enough to render.
-
-The repo expects them: `AGENTS.md` and `README.md` both point at them, and
-`.dockerignore` excludes `docs` from the images, so nothing breaks at build time, but the
-repository is incomplete without them.
+The M0 scaffold is unpacked and M1 has been built on top of it. Everything the scaffold
+marked as deliberately absent is now present: `package-lock.json` is generated and committed,
+and all three design documents are in `docs/`. What remains is housekeeping before the first
+push.
 
 ## Before the first push
 
@@ -27,3 +13,17 @@ repository is incomplete without them.
   `compose.yaml`, and `nginx.conf` if they collide.
 - `erasableSyntaxOnly` in `tsconfig.json` needs TypeScript 5.8+. The scaffold resolves
   7.0.2, so it is satisfied; remove the flag if a future typecheck complains.
+
+## What M1 added
+
+`src/draft/` and the three routes on `src/server/index.ts`. Two things about that are worth
+knowing before you touch it:
+
+- Four `@freesewing/*` packages are pinned exactly. Two of them
+  (`@freesewing/config`, `@freesewing/plugin-transform`) are direct dependencies only
+  because published FreeSewing packages import them without declaring them, so the graph
+  does not otherwise resolve. Do not remove them as "unused".
+- `scripts/origin-allowlist.txt` gained two hosts, both XML namespace identifiers that
+  FreeSewing writes into every rendered SVG. Read the comment there before adding a third.
+
+Details, and the reasoning, are in `docs/technical-design.md` §10, §11 (M1), and §13.

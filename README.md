@@ -7,9 +7,19 @@ garment on a body in 3D. Self-hosted, Apple Pencil, no account.
 
 ## Status
 
-Scaffold (M0). The deployed app serves `/healthz` and a smoke-test page that proves the
-static asset → reverse proxy → API path end to end. See `docs/technical-design.md` §11 for
-the milestone plan.
+**Drafting service (M1).** The deployed app serves `/healthz`, `GET /designs`,
+`GET /designs/:design`, and `POST /draft`, plus a smoke-test page that proves the static
+asset → reverse proxy → API path end to end. `POST /draft` answers with a rendered SVG and a
+`DraftResult` — per piece, its named paths, their curve-accurate lengths, notches, grainline,
+and centroid. See `docs/technical-design.md` §11 for the milestone plan.
+
+```bash
+curl -sX POST http://localhost:8091/draft \
+  -H 'content-type: application/json' \
+  -d '{"design":"aaron","measurements":{"biceps":350,"chest":1000,"hpsToBust":280,
+       "hpsToWaistBack":470,"neck":380,"shoulderToShoulder":450,"shoulderSlope":13,
+       "waistToArmpit":210,"waistToHips":130,"hips":840}}' | jq '.pieces[].id'
+```
 
 ## What it does
 
@@ -17,6 +27,10 @@ You draw pattern pieces the way you would sketch them: drag a point and the cons
 recomputes, edit the formula behind any point, bind a measurement. Define a seam by tapping
 the two edges that meet — the editor shows both edges' drafted lengths and flags a mismatch
 before anything is simulated.
+
+The drawing gestures are specified against a concrete standard: **sketching in Shapr3D**.
+`docs/editor-spec.md` §8.4 lists them one by one, says which the construction-history model
+keeps intact, and names the single place it has to differ.
 
 The editor emits ordinary FreeSewing source, so the whole FreeSewing ecosystem stays
 reachable. The same document drives a cloth simulation, so you see the garment sewn and
@@ -42,10 +56,12 @@ Node 22 or newer.
 
 ```bash
 npm ci
-npm run dev          # server on :8091
-npm run build:all    # bundle the server and the editor
+npm run dev            # server on :8091
+npm run build:all      # bundle the server and the editor
 npm run typecheck
-npm test
+npm test               # build first — the integration test boots dist/server.js
+npm run scan:origins   # no external origin in either bundle
+npm run licence:gate   # every dependency licence inside the allowlist
 ```
 
 ## Deployment

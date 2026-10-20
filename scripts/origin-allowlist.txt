@@ -9,3 +9,10 @@
 # fetched is a different question, and it belongs in the egress review instead.
 #
 # One host per line, lowercase, no scheme, no path. Lines starting with # are ignored.
+
+# M1 — the drafting service. Both are XML namespace identifiers that FreeSewing
+# writes into every rendered SVG. A namespace is a name, not an address: the
+# document is invalid without it and nothing ever resolves it. They appear only
+# in `dist/server.js`, which is the process that renders the SVG.
+freesewing.org
+www.w3.org

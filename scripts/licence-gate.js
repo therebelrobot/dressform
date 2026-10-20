@@ -16,14 +16,28 @@ if (!existsSync(root)) {
   process.exit(0)
 }
 
+// One entry of the pre-SPDX `licenses` field. Both forms are still published:
+// `["MIT"]` and `[{ type: "MIT" }]`. Reading only the object form reports a
+// genuinely MIT package as unlicensed, which is a false failure, not a safe one.
+const licenceEntry = (entry) => {
+  if (typeof entry === 'string') return entry
+  if (entry && typeof entry.type === 'string') return entry.type
+  return null
+}
+
 const readLicence = (pkgPath) => {
   try {
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
     if (typeof pkg.license === 'string') return pkg.license
     if (pkg.license && typeof pkg.license.type === 'string') return pkg.license.type
+
     if (Array.isArray(pkg.licenses)) {
-      return pkg.licenses.map((l) => l && l.type).filter(Boolean).join(' OR ')
+      const joined = pkg.licenses.map(licenceEntry).filter(Boolean).join(' OR ')
+      // An expression we could not read is a missing licence, not a stray one:
+      // it belongs in the "no licence field found" bucket so a human looks.
+      return joined.length > 0 ? joined : null
     }
+
     return null
   } catch {
     return null

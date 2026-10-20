@@ -30,7 +30,15 @@ TypeScript strict. Import paths carry no extension. npm. `tsx` for dev, esbuild 
 bundle. Unlicense. Hostnames in every file read `example.com` or `<docker-host>`. Nothing in
 CI pushes commits, tags, or releases.
 
+Tests run under `node --import tsx --test` so they can import `src/` directly — extensionless
+imports need the loader. Run `npm run build` first when a test boots `dist/server.js`. New
+third-party packages need a row in the dependency register (`docs/technical-design.md` §10)
+and must clear the licence gate.
+
 ## Where the work is
 
-`docs/technical-design.md` §11. M0 is this scaffold. M1 is the drafting service behind
-`POST /draft`.
+`docs/technical-design.md` §11. M0 (this scaffold) and M1 (the `draft` module behind
+`POST /draft`, and the design catalogue) are in place and green locally. **M2 — `doc`,
+headless — is next**: parse, edit, emit, fence, and preserve opaque regions, proven by the
+round-trip property test. Read `docs/editor-spec.md` §3–§6 before starting it, and §8.4
+before touching the 2D surface at M5.

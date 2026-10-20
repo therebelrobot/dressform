@@ -151,7 +151,7 @@ interface lives. An **adapter** fills a seam.
 | Module | Interface | Depth — what it hides | Version |
 |---|---|---|---|
 | `doc` | `open(src) → Document \| Refusal` · `emit(doc) → src` · `apply(doc, op) → Document` | Parsing, node identity, fence bookkeeping, opaque-region preservation, reprint-only-what-changed, rename propagation into the seam map | v1 |
-| `draft` | `draft(req: DraftRequest) → Promise<DraftResult>` | FreeSewing's version drift, the `stacks`-vs-`parts` shape, option interpolation, measurement defaults, Bézier → polyline tessellation, SVG theming | v1 |
+| `draft` | `draft(req: DraftRequest) → Promise<DraftResult>` · `listDesigns()` · `describeDesign(name)` | FreeSewing's version drift, the `parts`-vs-`stacks` shape, option interpolation, measurement defaults, Bézier → polyline tessellation, outline-vs-internal classification, the net-shape `sa: 0` assertion, SVG rendering | v1 |
 | `seamgraph` | `resolve(map: SeamMap, draft: DraftResult) → ResolvedSeams` | Mirror expansion, path-fraction sub-selection, direction reversal, arc-length reparameterisation, length-tolerance checks | v1 |
 | `avatar` | `build(measurements: MeasurementSet) → TriangleMesh` | Reference-body selection, per-region non-uniform scaling, landmark identification | v1 |
 | `place` | `place(draft, body, hints) → PlacedPiece[]` | Category classification, tangent-plane mapping, inflation gap, seam-aware orientation | v1 |
@@ -251,6 +251,18 @@ interface DraftRequest {
 }
 ```
 
+`measurements` is millimetres, except for the names FreeSewing measures in degrees —
+`shoulderSlope`, and whatever else a design declares. `GET /designs/:design` marks those, so
+the editor does not have to know the list. Names the design does not use are passed through
+untouched. A measurement the design requires and the request omits is a `422` naming it.
+
+`options` values are **resolved, not authored**. A design writes `chestEase: { pct: 8, min: 0,
+max: 20 }`; the value this field carries is `0.08`, and `GET /designs/:design` reports the same
+resolved form, so a client can echo a schema value straight back and land on the design's
+default. `kind: 'pct'` in that schema is a hint that the number is a fraction of a measurement
+and wants to be *displayed* as a percentage — it is not a unit. Nothing in the request path
+converts units, so nothing in it can be off by a factor of a hundred.
+
 ### 6.2 `DraftResult`
 
 ```ts
@@ -283,6 +295,21 @@ interface DraftPiece {
 `pathLengths` is the load-bearing field. It lets the seam validator catch a mismatch before
 any simulation runs, turning a class of silent physics failures into an immediate named
 error.
+
+Three of `DraftPiece`'s fields are **derived**, and each is derived a specific way:
+
+- `points` is a tessellation — curves sampled at roughly 12 mm, for rendering and hit-testing.
+  It is deliberately *not* the length reference: an inscribed polyline under-reports a curve
+  (§5), so `pathLengths` comes from the curve itself. The two agree to well inside 0.1 mm, and
+  M1's acceptance test asserts exactly that against the rendered SVG.
+- `notches` is attributed. FreeSewing anchors a notch at a point and records no path; each one
+  is nearest-path attributed at the arc-length fraction of its projection.
+- `grainline` is constructed. FreeSewing's `cutlist` declares a grain *angle* in degrees, not a
+  segment, so the segment is that angle drawn through the piece's centroid and clipped to the
+  piece's bounds. It is `null` when no grain is declared.
+
+`mirrorOf` is normally `null`: FreeSewing does not itself duplicate a piece, and mirroring is
+expressed exactly once, in `SeamMap.sides.mirror` (§6.3).
 
 ### 6.3 `SeamMap`
 
@@ -332,6 +359,18 @@ invariant rather than an editor nicety — see `dressform-editor-spec.md` §6.
 
 The reverse proxy already fronts the LAN, so the API carries no auth layer. The editor and
 API share one origin, so they need no CORS headers.
+
+`POST /draft`'s two failure codes divide at the transport. A body that cannot be read as a
+request at all — not JSON, not a JSON object, or over the 1 MiB cap — is `400`. A body that
+*is* a request the design refuses is `422`, carrying `fields` that each name a request path:
+`design`, `measurements.chest`, `options.chestEase`. So a well-formed request never answers
+`400`, and a refusal never answers `500`. `GET /designs` answers summaries and
+`GET /designs/:design` answers detail; an unknown design is a `404`, and a missing or
+wrong-typed field is not.
+
+The same split holds inside `draft`: validation belongs to the module, so a caller that is not
+HTTP gets the same named fields in a `DraftValidationError` rather than a transport-specific
+error.
 
 ### 6.5 `SceneBundle`
 
@@ -488,8 +527,12 @@ registry this session.
 
 | Dependency | Version | Licence | Use | Decision |
 |---|---|---|---|---|
-| `@freesewing/core` | — | MIT | Drafting engine | **Depend.** Pin the version. |
-| `@freesewing/<design>` | — | MIT | Design definitions | **Depend.** One design for the smoke test. |
+| `@freesewing/core` | 4.10.2 | MIT | Drafting engine | **Depend.** Pinned exactly. |
+| `@freesewing/aaron` | 4.10.2 | MIT | Design definitions | **Depend.** Pinned exactly. The one design the M1 smoke test drafts. |
+| `@freesewing/config` | 4.10.2 | MIT | Measurement units, and `logoPath` | **Depend, forced.** `plugin-annotations` imports it without declaring it, so the graph does not resolve without it. See §13. |
+| `@freesewing/plugin-transform` | 4.10.2 | MIT | Transform plugin | **Depend, forced.** `core-plugins` imports it without declaring it either. Same cause, same fix. See §13. |
+| `@freesewing/brian` | 4.10.2 | MIT | Peer dependency of `aaron` | **Transitive.** Installed as a peer; not addressable directly. |
+| `hooks` | 0.3.2 | MIT | Dependency of `@freesewing/core` | **Transitive.** Declares its licence in the pre-SPDX `licenses: ["MIT"]` form, which the licence gate now reads. See §13. |
 | `recast` | 0.24.0 | MIT | Parse, edit, and reprint JavaScript while preserving formatting and comments on untouched nodes | **Depend.** The load-bearing dependency of `doc`. Its "reprint only what changed" property is the entire round-trip mechanism. |
 | `@babel/parser` | 8.0.7 | MIT | The parser Recast drives | **Depend.** |
 | `three` | — | MIT | 3D viewport | **Depend.** |
@@ -533,6 +576,10 @@ deployed app serves `/healthz` and nothing else.
 `ghcr.io/therebelrobot/dressform:latest` listing both `linux/amd64` and `linux/arm64`, and a
 signed provenance attestation.
 
+**Locally verified.** Typecheck, both bundles, the test suite, the origin scan, and the licence
+gate all pass. The criterion itself needs the first push, which has not happened; see M1's
+closing note.
+
 #### M1 — Drafting service
 
 `draft` module behind `POST /draft`. `GET /designs`.
@@ -540,6 +587,30 @@ signed provenance attestation.
 **Done when:** a `DraftRequest` for one design returns an SVG and a `DraftResult` passing
 the product brief §7 drafting criteria. This milestone stands on its own as a printable
 pattern service.
+
+**Built.** `src/draft/`: `designs.ts` (the registry, and the option and measurement schemas
+`GET /designs/:design` serves), `freesewing.ts` (the shapes the adapter walks, written by hand
+because FreeSewing publishes no types), `geometry.ts` (pure — tessellation, bounds, centroid,
+grainline), `errors.ts`, and `index.ts` (validation and the draft). `src/server/index.ts` adds
+`GET /designs`, `GET /designs/:design`, and `POST /draft` beside M0's `/healthz`.
+
+**Verified.** `npm test` — 29 tests. The acceptance criterion is asserted directly:
+`test/draft.test.js` measures every path in the rendered SVG with an independent polyline
+walker (`test/support/svg.js`) and requires agreement with `pathLengths` within 0.1 mm. Also
+asserted: `pathLengths` comes from the curve and not from the tessellation; the net-shape
+`sa: 0` invariant; determinism; and each refusal shape.
+
+**Two gate findings, both fixed in the gate rather than worked around.** The licence gate read
+only the object form of the pre-SPDX `licenses` field, so it reported `hooks` — genuinely MIT —
+as unlicensed; it now reads both forms. And two published FreeSewing packages import
+`@freesewing/config` and `@freesewing/plugin-transform` without declaring them, so the
+dependency graph does not resolve without those two present as direct dependencies. Neither
+is a defect in this repo, and both are recorded in §10.
+
+**Outstanding from M0.** The M0 criterion needs its first real CI run: no push has happened
+yet, so neither image is published and no provenance attestation exists. Everything M0 claims
+that can be checked locally does check locally — typecheck, build, tests, origin scan, and
+licence gate are all green.
 
 #### M2 — Document model
 
@@ -668,6 +739,31 @@ assert them.
   the three.js `physics_ammo_cloth` example; the MPFB2/MakeHuman CC0 lineage.
 - `dressform` free on crates.io, npm, and PyPI.
 
+**Verified by building M1** (this session, against the installed tree):
+
+- FreeSewing 4.10.2 publishes **no type declarations**. The ambient declarations in
+  `src/freesewing.d.ts` and the structural shapes in `src/draft/freesewing.ts` exist because of
+  that, and they are held to the installed version by hand.
+- The `parts`-vs-`stacks` key shape: `pattern.parts[0]` is keyed by part id (`aaron.front`),
+  and `pattern.autoLayout.stacks` is keyed by part name. This corrects the assumption carried
+  since document version 1.0.
+- `Path.prototype.length()`, `.measureAlong(point)`, and `.projectPoint(point)` all exist and
+  agree with an independent polyline sample to well inside 0.1 mm on `aaron`'s real curves —
+  the basis of the acceptance criterion in product brief §7.
+- `part.snippets[*].def` and `.anchor`; `cutlist[partId].grain` in degrees; the `fabric` class
+  marker that distinguishes an outline path from an internal one; `__isPartHidden(partId)`.
+- `@freesewing/config` exports `measurements` and `degreeMeasurements`; `shoulderSlope` is the
+  only degree-valued measurement in the set, and it is the only one `aaron` requires.
+- **Two undeclared imports in published FreeSewing packages**: `@freesewing/plugin-annotations`
+  imports `@freesewing/config`, and `@freesewing/core-plugins` imports
+  `@freesewing/plugin-transform`, neither of which either package declares. The graph does not
+  resolve without both, so both are direct dependencies here. See §10.
+- **`hooks@0.3.2` declares its licence as `licenses: ["MIT"]`**, the pre-SPDX array form. It is
+  MIT; the gate was reading the field wrongly. Fixed in `scripts/licence-gate.js`.
+- The only two origins in `dist/server.js` — `freesewing.org` and `www.w3.org` — are XML
+  namespace identifiers that FreeSewing writes into every rendered SVG. A namespace is a name,
+  not an address. Allowlisted with that reasoning in `scripts/origin-allowlist.txt`.
+
 **Assumed, and to be confirmed by the implementer before relying on it:**
 
 - That Recast's reprint-only-changed property holds for the specific syntax FreeSewing
@@ -678,7 +774,6 @@ assert them.
   would be required and has not been tested.
 - The emit-plus-import latency budget for a drag frame, and therefore whether §4.2's escape
   hatch is needed at all.
-- The exact `parts`-vs-`stacks` key shape in the installed FreeSewing version.
 - The performance budget for a TypeScript XPBD solver at default particle density on an
   Apple Silicon browser.
 
@@ -742,10 +837,13 @@ dressform/
     "dev": "tsx watch src/server/index.ts",
     "build": "esbuild src/server/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/server.js",
     "build:web": "esbuild web/index.ts --bundle --format=esm --target=es2022 --outfile=dist/web/app.js",
+    "build:all": "npm run build && npm run build:web",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "node --import tsx --test test/*.test.js",
+    "scan:origins": "node scripts/origin-scan.js",
+    "licence:gate": "node scripts/licence-gate.js",
     "docker:build": "docker build -t ghcr.io/therebelrobot/dressform:local .",
-    "docker:run": "docker run --rm -p 8091:8091 ghcr.io/therebelrobot/dressform:local",
+    "docker:run": "docker run --rm -p 8091:8091 -v $(pwd)/seams:/app/seams:ro ghcr.io/therebelrobot/dressform:local",
     "docker:push": "docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/therebelrobot/dressform:latest --push .",
     "release:patch": "npm version patch -m \"chore: release v%s\" && git push && git push --tags",
     "release:minor": "npm version minor -m \"chore: release v%s\" && git push && git push --tags",
@@ -754,6 +852,12 @@ dressform/
   }
 }
 ```
+
+`test` runs under `tsx` rather than under Node's native type stripping. The repo's convention is
+extensionless imports, and native stripping resolves `./geometry` only if it is written
+`./geometry.ts`. The loader is what lets unit tests import `src/` directly instead of only the
+bundle. The integration test still boots the built `dist/server.js`, so `npm run build` remains
+a prerequisite for a whole-suite `npm test` — which is why `ci.yml` builds before it tests.
 
 ### Workflow obligations
 

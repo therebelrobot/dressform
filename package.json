@@ -14,7 +14,7 @@
     "build:web": "esbuild web/index.ts --bundle --format=esm --target=es2022 --outfile=dist/web/app.js",
     "build:all": "npm run build && npm run build:web",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "node --import tsx --test test/*.test.js",
     "scan:origins": "node scripts/origin-scan.js",
     "licence:gate": "node scripts/licence-gate.js",
     "docker:build": "docker build -t ghcr.io/therebelrobot/dressform:local .",
@@ -30,5 +30,11 @@
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@freesewing/aaron": "4.10.2",
+    "@freesewing/config": "4.10.2",
+    "@freesewing/core": "4.10.2",
+    "@freesewing/plugin-transform": "4.10.2"
   }
 }

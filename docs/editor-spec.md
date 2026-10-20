@@ -138,6 +138,13 @@ recipe exists only because the document kept it. A node that stores a value with
 formula cannot be emitted, and a node that stores a formula without its value cannot be
 drawn.
 
+**And `doc` does not evaluate**, so `PointNode.value` and `Formula.evaluated` are `| null` in
+the model until the evaluator fills them. That is not a gap in the type; it is the
+one-evaluator invariant expressed in it. `doc` reports the formula, and the draft — which is
+the emitted code — reports what the formula came out as. Were `doc` to compute a coordinate
+itself, the editor would have a second opinion about geometry, and the preview could diverge
+from what ships.
+
 ### 3.1 Node identity
 
 Two things identify a node, and they do different jobs:
@@ -214,6 +221,41 @@ The fence is an ordinary line comment. It is valid JavaScript, it survives forma
 invisible in a diff that does not touch it, and it costs one line per node. The alternative
 — a separate mapping file — would drift the moment someone edited the source in another
 editor, which is precisely the situation the fencing exists to survive.
+
+#### 4.1.1 Comment ownership, and the one rewrite that is safe
+
+Recast attaches comments to nodes, and a marker is an ordinary comment, so *which* node owns a
+marker decides whether it survives an edit. Measured against the installed versions rather than
+reasoned about, the rule is exact: **a statement's `comments` array is precisely the markers
+printed immediately above it.** A region's opening marker therefore belongs to its own
+statement, and its closing marker belongs to whatever statement follows — which, for the last
+region in a body, is the `return`.
+
+Three consequences, all load-bearing, and the first is a trap:
+
+- **Replacing a statement must copy the old node's `comments` array verbatim.** Inventing fresh
+  markers for a replaced statement emits a file whose regions are shuffled and duplicated: the
+  previous region's closing marker is overwritten by the new opening marker, and the following
+  statement keeps a closing marker that now matches nothing. The result parses, which is why
+  the failure is silent.
+- **A formula is rewritten in place, never rebuilt.** A statement rebuilt from the node model
+  carries no source position, so Recast formats it from scratch — which flattens an author's
+  five-line `new Path().move().curve().close()` into a single line on every drag. Replacing the
+  changed argument inside the tree it came from keeps the reprint to the formula that actually
+  changed, which is what "no reformatting" has to mean in practice.
+- **Adding and removing a node go through neither path.** Fences are line-delimited, so a
+  region is inserted or removed as whole lines and the source is reparsed. That reparse is also
+  how every mutation gets its source positions back, since a rebuilt node has none.
+
+Everything outside a region is copied through untouched by construction, so the property the
+round-trip test asserts is structural rather than hopeful.
+
+#### 4.1.2 Sources are read in lines, not byte offsets
+
+Recast expands tabs before it parses, so a node's column — and therefore its byte offset — can
+disagree with the original text. Line numbers survive that expansion intact, and a fence
+delimits whole lines, so `Span` is line-aligned and every region operation works in lines.
+Offsets are derived from line starts. Nothing in `doc` compares a column against a byte.
 
 ### 4.2 What commit means
 

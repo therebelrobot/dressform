@@ -533,8 +533,8 @@ registry this session.
 | `@freesewing/plugin-transform` | 4.10.2 | MIT | Transform plugin | **Depend, forced.** `core-plugins` imports it without declaring it either. Same cause, same fix. See §13. |
 | `@freesewing/brian` | 4.10.2 | MIT | Peer dependency of `aaron` | **Transitive.** Installed as a peer; not addressable directly. |
 | `hooks` | 0.3.2 | MIT | Dependency of `@freesewing/core` | **Transitive.** Declares its licence in the pre-SPDX `licenses: ["MIT"]` form, which the licence gate now reads. See §13. |
-| `recast` | 0.24.0 | MIT | Parse, edit, and reprint JavaScript while preserving formatting and comments on untouched nodes | **Depend.** The load-bearing dependency of `doc`. Its "reprint only what changed" property is the entire round-trip mechanism. |
-| `@babel/parser` | 8.0.7 | MIT | The parser Recast drives | **Depend.** |
+| `recast` | 0.24.0 | MIT | Parse, edit, and reprint JavaScript while preserving formatting and comments on untouched nodes | **Depend.** The load-bearing dependency of `doc`; its "reprint only what changed" property is the entire round-trip mechanism. **Its bundled babel parser does not work with Babel 8**, so `doc` passes its own. See §13. |
+| `@babel/parser` | 8.0.7 | MIT | The parser Recast drives | **Depend.** Needs no plugin list for FreeSewing's syntax; Babel 8 enables modern syntax by default. Pinned exactly because Recast's defaults are what break against it. |
 | `three` | — | MIT | 3D viewport | **Depend.** |
 | `esbuild` | — | MIT | Bundling | **Depend** (build only) |
 | `tsx` | — | MIT | Dev runtime | **Depend** (dev only) |
@@ -621,6 +621,33 @@ spec's §3 and §4.
 every generated edit sequence, `emit(apply(open(src), ops))` preserves all opaque bytes
 byte-for-byte and changes only fenced regions. This is the hardest milestone in the project
 and it is fully testable without a browser.
+
+**Built.** `src/doc/`: `parser.ts` (the Recast parser adapter), `fence.ts` (the marker format,
+read and written in lines), `primitives.ts` (the §7 vocabulary, both directions), `opacity.ts`
+(the §5 table, each construct to its named reason), `nodes.ts` (the derived index), `types.ts`,
+and `index.ts` (`open`, `emit`, `apply`). `src/seamgraph/types.ts` carries the `SeamMap`
+contract, which `Document` references.
+
+**The §13.1 spike came back with a version incompatibility, not a formatting one.** Recast
+0.24.0's bundled babel parser asks `@babel/parser` 8 for `pipelineOperator: { proposal:
+'minimal' }`, which Babel 8 rejects outright, so the two packages do not work together as
+shipped. The fix is Recast's own documented escape — `doc` carries a parser adapter — and Babel
+8 enables modern syntax by default, so the adapter's plugin list is empty. With that in place
+Recast's property holds exactly: an unmodified document reprints byte-for-byte, and a
+one-literal edit changes one line, across template literals, optional chaining, and nullish
+coalescing alike. **The fence strategy stands as designed.**
+
+**Verified.** `npm test` — 54 tests. The property test generates 25 seeded edit sequences over
+the corpus and asserts that no line outside a fenced region changes, that every opaque region
+survives verbatim, that a reparse of unmodified output yields identical ids and bindings, and
+that a sequence is byte-deterministic. Unit tests cover the §5 table construct by construct,
+every refusal shape, rename propagation, rename refusal through an opaque region, fence
+insertion that survives a reparse, and that an emitted module imports.
+
+**Deferred to M5.** `apply` implements the ops this milestone can prove — `setFormula`,
+`setPathOp`, `renameNode`, `addNode`, `removeNode`, `setMeasurement`, `setOption`. The editor's
+own gesture surface will want more, and it is the right place to add them: the fence rules they
+must obey are settled here and tested.
 
 #### M3 — Seam resolution, placement, and drape
 
@@ -764,11 +791,29 @@ assert them.
   namespace identifiers that FreeSewing writes into every rendered SVG. A namespace is a name,
   not an address. Allowlisted with that reasoning in `scripts/origin-allowlist.txt`.
 
+**Verified by building M2** (this session, against the installed tree):
+
+- **Recast 0.24.0 and `@babel/parser` 8.0.7 do not work together out of the box.** Recast's
+  `parsers/babel` passes `pipelineOperator: { proposal: 'minimal' }`, which Babel 8 rejects.
+  Supplying a parser object is Recast's documented escape, and it is what `doc` does. This
+  corrects the assumption this section carried: the risk was the *combination*, not Recast's
+  guarantee.
+- **`@babel/parser` 8 needs no plugin list for FreeSewing's idiom.** Template literals, optional
+  chaining, nullish coalescing, class properties, and destructuring all parse with `plugins: []`;
+  Recast's stale list was the entire incompatibility.
+- **Recast's reprint-only-changed property holds for that idiom.** An unmodified document is
+  byte-identical after a parse/print round trip, and a one-literal edit changes one line. The
+  §13.1 risk is closed, and the fence strategy stands as designed.
+- **Recast attaches a region's *closing* marker to the statement that follows it**, not to the
+  statement inside the region. Inventing fresh markers for a replaced statement is confirmed to
+  shuffle and duplicate regions in a file that still parses. Recorded in editor spec §4.1.1.
+- **Recast expands tabs before parsing**, so AST columns — and therefore byte offsets — can
+  disagree with the original text while line numbers agree. `doc` works in lines; editor spec
+  §4.1.2.
+- Recast 0.24.0 (MIT) and `@babel/parser` 8.0.7 (MIT), read from the npm registry this session.
+
 **Assumed, and to be confirmed by the implementer before relying on it:**
 
-- That Recast's reprint-only-changed property holds for the specific syntax FreeSewing
-  designs use, including template literals and optional chaining. Recast's guarantee is
-  documented; its behaviour on each construct is not.
 - That a design which imports `Point`/`Path` directly, rather than destructuring them from
   `draft()`'s arguments, can still be instrumented for `trace`. Module-alias interception
   would be required and has not been tested.

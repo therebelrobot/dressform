@@ -7,11 +7,15 @@ garment on a body in 3D. Self-hosted, Apple Pencil, no account.
 
 ## Status
 
-**Drafting service (M1).** The deployed app serves `/healthz`, `GET /designs`,
-`GET /designs/:design`, and `POST /draft`, plus a smoke-test page that proves the static
-asset → reverse proxy → API path end to end. `POST /draft` answers with a rendered SVG and a
-`DraftResult` — per piece, its named paths, their curve-accurate lengths, notches, grainline,
-and centroid. See `docs/technical-design.md` §11 for the milestone plan.
+**Document model (M2).** `POST /draft` answers with a rendered SVG and a `DraftResult` — per
+piece, its named paths, their curve-accurate lengths, notches, grainline, and centroid — and
+`src/doc/` holds the AST document model underneath it: parse, edit, emit, fence, and preserve
+opaque regions byte-for-byte, with **lossless or refuse** enforced by a property test rather
+than by care.
+
+The deployed app serves `/healthz`, `GET /designs`, `GET /designs/:design`, `POST /draft`, plus
+a smoke-test page that proves the static asset → reverse proxy → API path end to end. See
+`docs/technical-design.md` §11 for the milestone plan.
 
 ```bash
 curl -sX POST http://localhost:8091/draft \

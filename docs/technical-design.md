@@ -153,7 +153,7 @@ interface lives. An **adapter** fills a seam.
 | `doc` | `open(src) → Document \| Refusal` · `emit(doc) → src` · `apply(doc, op) → Document` | Parsing, node identity, fence bookkeeping, opaque-region preservation, reprint-only-what-changed, rename propagation into the seam map | v1 |
 | `draft` | `draft(req: DraftRequest) → Promise<DraftResult>` · `listDesigns()` · `describeDesign(name)` | FreeSewing's version drift, the `parts`-vs-`stacks` shape, option interpolation, measurement defaults, Bézier → polyline tessellation, outline-vs-internal classification, the net-shape `sa: 0` assertion, SVG rendering | v1 |
 | `seamgraph` | `resolve(map: SeamMap, draft: DraftResult) → ResolvedSeams` | Mirror expansion, path-fraction sub-selection, direction reversal, arc-length reparameterisation, length-tolerance checks | v1 |
-| `avatar` | `build(measurements: MeasurementSet) → TriangleMesh` | Reference-body selection, per-region non-uniform scaling, landmark identification | v1 |
+| `avatar` | `build(reference: ReferenceBody, measurements: MeasurementSet) → TriangleMesh` | Reference-body selection, per-region girth measurement, per-region non-uniform scaling, rig-anchored landmark identification | v1 |
 | `place` | `place(draft, body, hints) → PlacedPiece[]` | Category classification, tangent-plane mapping, inflation gap, seam-aware orientation | v1 |
 | `sim` | `sim.step(dt)` · `sim.bake() → Snapshot` | Constraint projection, collision queries, self-collision, determinism, worker protocol | v1 |
 | `fit` | `score(scene, snapshot) → FitReport` | Strain aggregation, penetration depth, displacement, per-region bucketing | v1 |
@@ -165,6 +165,16 @@ FreeSewing's internals not the caller's problem.
 
 `doc`'s internals belong to `dressform-editor-spec.md`. This document names its interface
 and its invariants; it does not restate them.
+
+**Two signatures were amended while building them, both for the same reason.** §4.1 wrote
+`avatar.build(measurements)`; a synchronous function cannot do I/O, and the reference body is
+a megabyte the browser fetches and the command line reads off disk, so `avatar` takes the body
+as its first argument instead of loading it. And `draft` gained `listDesigns()` and
+`describeDesign(name)`, because `GET /designs` has to answer with something. In both cases
+only *where an input comes from* moved; the depth each module hides is unchanged.
+
+`place`'s third argument is `PlaceHints`, and its output type is `PlacedPiece[]` — §6.5 hands
+those to `SceneBundle`. Both are `place`'s own; nothing else defines them.
 
 ### 4.2 Seam decisions
 
@@ -715,7 +725,7 @@ two runs and a drape driven end to end from a `.dressform` document.
 Record how long the hand-authored seam map took. That number is the input to M6's
 justification.
 
-**`seamgraph` built; `avatar`, `place`, and `sim` still outstanding.** `src/seamgraph/` resolves
+**Built: `seamgraph`, `avatar`, `place`. Outstanding: `sim`.** `src/seamgraph/` resolves
 a `SeamMap` against a `DraftResult` — fraction sub-selection, direction reversal, mirror
 expansion, and the length-tolerance check — with 11 tests against synthetic maps and
 hand-computed arc lengths. A seam that cannot resolve is reported with the offending
@@ -732,6 +742,32 @@ mirror axis, so the resolver emits a second seam with the id's side flipped (`sh
 `shoulder.right`) and reports which pieces it expanded. Choosing where a mirrored copy sits on
 the body is `place`'s job. If a design ever needs a mirror axis in the map, that is an addition
 to §6.3 rather than a hidden assumption here.
+
+**`avatar` measures girths and scales; it does not morph.** Per §7.4, so it measures the
+reference body's own cross-section at the chest, waist, and seat, works out the factor that
+turns each into the requested girth, and scales the surface there. Measured on the shipped
+bodies: male 1.072 / 0.758 / 0.936 m and female 0.920 / 0.723 / 0.945 m for chest, waist, and
+hips, and scaling then lands each on the requested figure within 12%.
+
+Its anchors are **rig joints, not silhouettes**, and the first attempt at the silhouette
+version is worth keeping in the record. It found the features by looking for the widest and
+narrowest cross-sections in windows of height, and was wrong twice: the windows were measured
+from `y = 0` while the mesh's floor sits at `y = −0.845`, so they were empty; and — not a bug
+but a modelling error — *the widest loop at chest height is not the chest*. With the arms at
+the sides a horizontal slice merges them into the torso, which is how a body with a 1.0 m
+chest reports a **1.36 m** girth. Both go away by reading the mesh's named vertex groups:
+`joint-spine-1`, `joint-spine-3`, `joint-pelvis`, the shoulder joints that set the width
+beyond which a segment belongs to an arm, and a `body` range that excludes the helper
+geometry. A lookup cannot drift the way an inference can.
+
+**`place` seats a draft on that body.** A piece is wrapped around a cylinder fitted to the
+body at one height, offset by §7.2's 30 mm inflation gap, and `lift` is the single function
+that maps a piece's own 2D coordinates into scene space — which is what lets `sim` build its
+particle grid in the piece's coordinates, where particle density is *its* parameter, and lift
+through the same mapping. Seam-aware orientation is a **±45° refinement** of the angle the
+piece's category implies, not a search of the circle: a panel that wraps most of a torso has a
+seam edge almost everywhere, so minimising seam distance over 360° drags the back panel round
+to lie beside the front one — a better seam and a worse garment.
 
 #### M4 — Fit report
 
@@ -885,6 +921,24 @@ assert them.
   disagree with the original text while line numbers agree. `doc` works in lines; editor spec
   §4.1.2.
 - Recast 0.24.0 (MIT) and `@babel/parser` 8.0.7 (MIT), read from the npm registry this session.
+
+**Verified by building M3** (this session, against the shipped bodies):
+
+- **The MakeHuman base mesh's unit is the decimetre and its up axis is `+y`.** A 16.95-unit
+  height is a 1.695 m person, so the conversion is one tenth and no axis swap is needed —
+  which is three.js's convention already.
+- **MPFB2's `src/mpfb/data/**` is CC0**, under its own `LICENSE.ASSETS.md`, while its source is
+  GPLv3. The data can be shipped; the plugin must not be, and is not.
+- **`macrodetails/universal-<gender>-<age>-<muscle>-<weight>.target` are 604-byte stubs** in
+  the upstream repository — a licence header and nothing else, because MakeHuman composes the
+  real macrodetails at build time by summing components. Applying one returns the unmodified
+  base mesh. The targets with data are the ethnicity+gender+age ones.
+- **The mesh carries named vertex groups**, including `joint-pelvis`, `joint-spine-1`…`4`,
+  `joint-neck`, and `joint-l/r-shoulder`, plus a `body` range that excludes helper geometry.
+  They are what makes `avatar`'s anchors lookups rather than inferences; see §11's M3.
+- The measured girths on the shipped bodies are anatomically plausible — male 1.072 / 0.758 /
+  0.936 m and female 0.920 / 0.723 / 0.945 m for chest, waist, and hips — which is the only
+  check available for a number nobody can hold in their hand.
 
 **Assumed, and to be confirmed by the implementer before relying on it:**
 

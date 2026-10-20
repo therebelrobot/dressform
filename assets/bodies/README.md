@@ -21,6 +21,8 @@ Each body is one JSON document:
   uniform scale, so they are a scalar rather than three copies of the geometry.
   See "Why the variants are a scalar" below.
 - `bounds` and `height` are the mesh's own, so a consumer can check its load.
+- `joints` maps ten rig joint names to positions, and `bodyRange` is the span of
+  vertices that is the body itself. `avatar` anchors on both; see below.
 
 19,158 vertices and 36,972 triangles each — upstream's full base mesh. Fingers,
 toes, and face are present and are *not* decimated, because decimation would
@@ -42,7 +44,28 @@ Both bodies are the MakeHuman base mesh with one macrodetails target applied.
 | Base mesh | `makehuman/data/3dobjs/base.obj` — sha256 `8e761e66…` |
 | Male target | `macrodetails/caucasian-male-young.target` — sha256 `70e228ba…` |
 | Female target | `macrodetails/caucasian-female-young.target` — sha256 `118379f6…` |
-| Licence | **CC0 1.0 Universal**, `LICENSE.ASSETS.md` at that repository's root |
+| Joint table | `makehumancommunity/mpfb2` at `b1a2dc98…`, `basemesh_vertex_groups.json` — sha256 `8cb1417b…` |
+| Licence | **CC0 1.0 Universal** — `LICENSE.ASSETS.md` at the root of *both* repositories |
+
+### The joint table, and why a second repository
+
+Each body also carries `joints` — ten rig joint positions — and `bodyRange`, the span of
+vertices that is the body itself. Both come from the mesh's named vertex groups, which live in
+**MPFB2** rather than MakeHuman. MPFB2 is two things under two licences: GPLv3 source and CC0
+data, and this is the data. Neither its source nor its plugin is used or shipped.
+
+They matter because `avatar` anchors on them. Its first version found the chest, waist, and
+hips by looking for the widest and narrowest cross-sections in windows of height, and that is
+wrong in a way worth recording: **the widest loop at chest height is not the chest.** With the
+arms at the sides a horizontal slice merges them into the torso, which is how a body with a
+1.0 m chest reports a 1.36 m girth. `joint-spine-1` is the chest, `joint-spine-3` the waist,
+`joint-pelvis` the seat, and the shoulder joints give the width beyond which a segment belongs
+to an arm. `bodyRange` excludes the helper geometry — eyes, teeth, hair — which had been
+slicing the head into two dozen tiny loops.
+
+A vertex count, a file size, and "it loads fine" would none of them have caught either
+failure. The tests do, and one of them asserts the arm inflation still happens without the
+lateral cut, so the reason for the cut cannot quietly stop applying.
 
 Every input carries its own CC0 statement in its header:
 

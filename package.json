@@ -32,7 +32,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@babel/parser": "8.0.7",
+    "@babel/parser": "8.1.0",
     "@freesewing/aaron": "4.10.2",
     "@freesewing/config": "4.10.2",
     "@freesewing/core": "4.10.2",

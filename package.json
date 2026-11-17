@@ -37,6 +37,6 @@
     "@freesewing/config": "4.10.2",
     "@freesewing/core": "4.10.2",
     "@freesewing/plugin-transform": "4.10.2",
-    "recast": "0.24.0"
+    "recast": "0.24.3"
   }
 }
